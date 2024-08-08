@@ -102,7 +102,7 @@ impl<'a> QueryPlugins<'a> {
                 is_scripthash_index_enabled: false,
                 plugin_name_map: self.plugin_name_map,
             };
-        utxos.utxos(PluginMember { plugin_idx, group }.ser())
+        utxos.utxos(&PluginMember { plugin_idx, group }.ser())
     }
 
     /// Query all the groups of a plugin (only those that have unspent members),

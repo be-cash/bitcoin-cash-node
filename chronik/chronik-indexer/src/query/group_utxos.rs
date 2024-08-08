@@ -216,11 +216,11 @@ where
     /// - Mempool UTXOs second, ordered by txid:out_idx.
     ///
     /// Note: This call can potentially be expensive on members with many UTXOs.
-    pub fn utxos(&self, member: G::Member<'_>) -> Result<Vec<U::Proto>> {
+    pub fn utxos(&self, member: &G::Member<'_>) -> Result<Vec<U::Proto>> {
         let tx_reader = TxReader::new(self.db)?;
         let utxo_reader = GroupUtxoReader::<G>::new(self.db)?;
         let plugins_reader = PluginsReader::new(self.db)?;
-        let member_ser = self.group.ser_member(&member);
+        let member_ser = self.group.ser_member(member);
 
         // Read UTXO entries from DB and mempool
         let db_utxos =

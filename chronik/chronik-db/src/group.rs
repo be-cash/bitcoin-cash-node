@@ -4,6 +4,8 @@
 
 //! Module for [`Group`] and [`GroupQuery`].
 
+use std::borrow::Cow;
+
 use bitcoinsuite_core::{
     hash::Sha256,
     tx::{Tx, TxOutput},
@@ -41,11 +43,13 @@ pub enum GroupMember<M> {
     MemberHash(Sha256),
 }
 
-impl<M> GroupMember<M> {
+impl<M: Clone> GroupMember<M> {
     /// Converts from &GroupMember<M> to GroupMember<&M>.
-    pub fn as_ref(&self) -> GroupMember<&M> {
+    pub fn as_ref(&self) -> GroupMember<Cow<'_, M>> {
         match self {
-            GroupMember::Member(member) => GroupMember::Member(member),
+            GroupMember::Member(member) => {
+                GroupMember::Member(Cow::Borrowed(member))
+            }
             GroupMember::MemberHash(hash) => GroupMember::MemberHash(*hash),
         }
     }

@@ -1,6 +1,6 @@
 //! Module for Chronik handlers.
 
-use std::{collections::HashMap, fmt::Display, str::FromStr};
+use std::{borrow::Cow, collections::HashMap, fmt::Display, str::FromStr};
 
 use abc_rust_error::{Report, Result};
 use bitcoinsuite_core::{
@@ -171,7 +171,8 @@ pub async fn handle_script_utxos(
 ) -> Result<proto::ScriptUtxos> {
     let script_utxos = indexer.script_utxos()?;
     let member = get_group_member(script_type, payload)?;
-    let script = script_utxos.script(member, indexer.decompress_script_fn)?;
+    let script =
+        Cow::Owned(script_utxos.script(member, indexer.decompress_script_fn)?);
     let utxos = script_utxos.utxos(&script)?;
     Ok(proto::ScriptUtxos {
         script: script.bytecode().to_vec(),
@@ -235,7 +236,7 @@ pub async fn handle_token_id_utxos(
 ) -> Result<proto::Utxos> {
     let token_id = token_id_hex.parse::<TokenId>()?;
     let token_id_utxos = indexer.token_id_utxos();
-    let utxos = token_id_utxos.utxos(token_id)?;
+    let utxos = token_id_utxos.utxos(&token_id)?;
     Ok(proto::Utxos { utxos })
 }
 
