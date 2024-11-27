@@ -653,7 +653,10 @@ size_t CTxMemPool::DynamicMemoryUsage() const {
 void CTxMemPool::RemoveStaged(const setEntries &stage, MemPoolRemovalReason reason) {
     AssertLockHeld(cs);
     UpdateForRemoveFromMempool(stage);
-    for (txiter it : stage) {
+
+    // Remove txs in reverse-topological order
+    const setRevTopoEntries stageRevTopo(stage.begin(), stage.end());
+    for (txiter it : stageRevTopo) {
         removeUnchecked(it, reason);
     }
 }
@@ -1151,6 +1154,8 @@ void DisconnectedBlockTransactions::importMempool(CTxMemPool &pool) {
             vtx.push_back(e.GetSharedTx());
             // save entry time and feeDelta for use in updateMempoolForReorg()
             txInfo.try_emplace(e.GetTx().GetId(), e.GetTime(), e.GetModifiedFee() - e.GetFee());
+        }
+        for (const CTxMemPoolEntry &e : reverse_iterate(pool.mapTx.get<entry_id>())) {
             // notify all observers of this (possibly temporary) removal
             pool.NotifyEntryRemoved(e.GetSharedTx(), MemPoolRemovalReason::REORG);
         }

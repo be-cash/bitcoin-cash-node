@@ -404,6 +404,44 @@ bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex,
     return true;
 }
 
+bool ReadTxFromDisk(CMutableTransaction &tx, const FlatFilePos &pos) {
+    // Open history file to read
+    CAutoFile filein(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
+    if (filein.IsNull()) {
+        return error("ReadTxFromDisk: OpenBlockFile failed for %s",
+                     pos.ToString());
+    }
+
+    // Read tx
+    try {
+        filein >> tx;
+    } catch (const std::exception &e) {
+        return error("%s: Deserialize or I/O error - %s at %s", __func__,
+                     e.what(), pos.ToString());
+    }
+
+    return true;
+}
+
+bool ReadTxUndoFromDisk(CTxUndo &tx_undo, const FlatFilePos &pos) {
+    // Open undo file to read
+    CAutoFile filein(OpenUndoFile(pos, true), SER_DISK, CLIENT_VERSION);
+    if (filein.IsNull()) {
+        return error("ReadTxUndoFromDisk: OpenUndoFile failed for %s",
+                     pos.ToString());
+    }
+
+    // Read undo data
+    try {
+        filein >> tx_undo;
+    } catch (const std::exception &e) {
+        return error("%s: Deserialize or I/O error - %s at %s", __func__,
+                     e.what(), pos.ToString());
+    }
+
+    return true;
+}
+
 static std::optional<CAutoFile> ReadBlockSizeCommon(uint64_t &blockSizeOut, const CBlockIndex *pindex,
                                                     const CChainParams &chainParams, FlatFilePos *blockPosOut = nullptr,
                                                     const bool logErrorIfMissing = true) {

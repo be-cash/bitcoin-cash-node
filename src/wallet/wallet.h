@@ -1072,13 +1072,13 @@ public:
     bool AddToWallet(const CWalletTx &wtxIn, bool fFlushOnClose = true);
     void LoadToWallet(const CWalletTx &wtxIn)
         EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
-    void TransactionAddedToMempool(const CTransactionRef &tx) override;
+    void TransactionAddedToMempool(const CTransactionRef &tx, std::shared_ptr<const std::vector<Coin>>) override;
     void
     BlockConnected(const std::shared_ptr<const CBlock> &pblock,
                    const CBlockIndex *pindex,
                    const std::vector<CTransactionRef> &vtxConflicted) override;
     void
-    BlockDisconnected(const std::shared_ptr<const CBlock> &pblock) override;
+    BlockDisconnected(const std::shared_ptr<const CBlock> &pblock, const CBlockIndex *pindex) override;
     void TransactionDoubleSpent(const CTransactionRef &ptxn,
                                 const DspId &dspId) override;
     int64_t RescanFromTime(int64_t startTime,

@@ -16,6 +16,7 @@
 #include <vector>
 
 extern RecursiveMutex cs_main;
+class Coin;
 class CBlock;
 class CBlockIndex;
 struct CBlockLocator;
@@ -106,15 +107,14 @@ protected:
      *
      * Called on a background thread.
      */
-    virtual void UpdatedBlockTip(const CBlockIndex *pindexNew,
-                                 const CBlockIndex *pindexFork,
-                                 bool fInitialDownload) {}
+    virtual void UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload) {}
     /**
      * Notifies listeners of a transaction having been added to mempool.
      *
      * Called on a background thread.
      */
-    virtual void TransactionAddedToMempool(const CTransactionRef &ptxn) {}
+    virtual void TransactionAddedToMempool(const CTransactionRef &ptxn,
+                                           std::shared_ptr<const std::vector<Coin>> spent_coins) {}
 
     /**
      * Notifies listeners of a new valid double-spend proof having been
@@ -152,17 +152,14 @@ protected:
      *
      * Called on a background thread.
      */
-    virtual void
-    BlockConnected(const std::shared_ptr<const CBlock> &block,
-                   const CBlockIndex *pindex,
-                   const std::vector<CTransactionRef> &txnConflicted) {}
+    virtual void BlockConnected(const std::shared_ptr<const CBlock> &block, const CBlockIndex *pindex,
+                                const std::vector<CTransactionRef> &txnConflicted) {}
     /**
      * Notifies listeners of a block being disconnected
      *
      * Called on a background thread.
      */
-    virtual void BlockDisconnected(const std::shared_ptr<const CBlock> &block) {
-    }
+    virtual void BlockDisconnected(const std::shared_ptr<const CBlock> &block, const CBlockIndex *pindex) {}
     /**
      * Notifies listeners of the new active block chain on-disk.
      *
@@ -181,8 +178,7 @@ protected:
      */
     virtual void ChainStateFlushed(const CBlockLocator &locator) {}
     /** Tells listeners to broadcast their data. */
-    virtual void ResendWalletTransactions(int64_t nBestBlockTime,
-                                          CConnman *connman) {}
+    virtual void ResendWalletTransactions(int64_t nBestBlockTime, CConnman *connman) {}
     /**
      * Notifies listeners of a block validation result.
      * If the provided CValidationState IsValid, the provided block
@@ -195,8 +191,7 @@ protected:
      * has been received and connected to the headers tree, though not validated
      * yet.
      */
-    virtual void NewPoWValidBlock(const CBlockIndex *pindex,
-                                  const std::shared_ptr<const CBlock> &block){};
+    virtual void NewPoWValidBlock(const CBlockIndex *pindex, const std::shared_ptr<const CBlock> &block){};
     friend void ::RegisterValidationInterface(CValidationInterface *);
     friend void ::UnregisterValidationInterface(CValidationInterface *);
     friend void ::UnregisterAllValidationInterfaces();
@@ -210,8 +205,7 @@ private:
     friend void ::RegisterValidationInterface(CValidationInterface *);
     friend void ::UnregisterValidationInterface(CValidationInterface *);
     friend void ::UnregisterAllValidationInterfaces();
-    friend void ::CallFunctionInValidationInterfaceQueue(
-        std::function<void()> func);
+    friend void ::CallFunctionInValidationInterfaceQueue(std::function<void()> func);
 
     void MempoolEntryRemoved(CTransactionRef tx, MemPoolRemovalReason reason);
 
@@ -236,21 +230,17 @@ public:
     /** Unregister with mempool */
     void UnregisterWithMempoolSignals(CTxMemPool &pool);
 
-    void UpdatedBlockTip(const CBlockIndex *, const CBlockIndex *,
-                         bool fInitialDownload);
-    void TransactionAddedToMempool(const CTransactionRef &);
+    void UpdatedBlockTip(const CBlockIndex *, const CBlockIndex *, bool fInitialDownload);
+    void TransactionAddedToMempool(const CTransactionRef &, std::shared_ptr<const std::vector<Coin>>);
     void TransactionDoubleSpent(const CTransactionRef &, const DspId &);
     void BadDSProofsDetectedFromNodeIds(const std::vector<NodeId> &);
-    void
-    BlockConnected(const std::shared_ptr<const CBlock> &,
-                   const CBlockIndex *pindex,
-                   const std::shared_ptr<const std::vector<CTransactionRef>> &);
-    void BlockDisconnected(const std::shared_ptr<const CBlock> &);
+    void BlockConnected(const std::shared_ptr<const CBlock> &, const CBlockIndex *pindex,
+                        const std::shared_ptr<const std::vector<CTransactionRef>> &);
+    void BlockDisconnected(const std::shared_ptr<const CBlock> &, const CBlockIndex *);
     void ChainStateFlushed(const CBlockLocator &);
     void Broadcast(int64_t nBestBlockTime, CConnman *connman);
     void BlockChecked(const CBlock &, const CValidationState &);
-    void NewPoWValidBlock(const CBlockIndex *,
-                          const std::shared_ptr<const CBlock> &);
+    void NewPoWValidBlock(const CBlockIndex *, const std::shared_ptr<const CBlock> &);
 };
 
 CMainSignals &GetMainSignals();

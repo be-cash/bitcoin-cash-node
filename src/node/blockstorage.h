@@ -15,6 +15,9 @@
 #include <set>
 #include <vector>
 
+class CTxUndo;
+class CMutableTransaction;
+
 class CBlock;
 class CBlockFileInfo;
 class CBlockIndex;
@@ -54,7 +57,7 @@ extern RecursiveMutex cs_LastBlockFile;
 extern std::vector<CBlockFileInfo> vinfoBlockFile GUARDED_BY(cs_LastBlockFile);
 extern int nLastBlockFile GUARDED_BY(cs_LastBlockFile);
 extern bool fCheckForPruning GUARDED_BY(cs_LastBlockFile);
-extern std::set<const CBlockIndex*> setDirtyBlockIndex GUARDED_BY(cs_main);
+extern std::set<const CBlockIndex *> setDirtyBlockIndex GUARDED_BY(cs_main);
 extern std::set<int> setDirtyFileInfo GUARDED_BY(cs_LastBlockFile);
 
 //! Check whether the block associated with this index entry is pruned or not.
@@ -81,10 +84,8 @@ uint64_t CalculateCurrentUsage();
 void UnlinkPrunedFiles(const std::set<int> &setFilesToPrune);
 
 /** Functions for disk access for blocks */
-bool ReadBlockFromDisk(CBlock &block, const FlatFilePos &pos,
-                       const Consensus::Params &params);
-bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex,
-                       const Consensus::Params &params);
+bool ReadBlockFromDisk(CBlock &block, const FlatFilePos &pos, const Consensus::Params &params);
+bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex, const Consensus::Params &params);
 /**
  * Read raw block bytes from disk. Faster than the above, because this function just returns the raw block data without
  * any unserialization. Intended to be used by the net code for low-overhead serving of block data.
@@ -106,6 +107,11 @@ std::optional<uint64_t> ReadBlockSizeFromDisk(const CBlockIndex *pindex, const C
 bool UndoReadFromDisk(CBlockUndo &blockundo, const CBlockIndex *pindex);
 bool WriteUndoDataForBlock(const CBlockUndo &blockundo, CValidationState &state, CBlockIndex *pindex,
                            const CChainParams &chainparams) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+
+/** Functions for disk access for txs */
+bool ReadTxFromDisk(CMutableTransaction &tx, const FlatFilePos &pos);
+bool ReadTxUndoFromDisk(CTxUndo &tx, const FlatFilePos &pos);
+
 /**
  * Store block on disk. If dbp is non-nullptr, the file is known to already
  * reside on disk.

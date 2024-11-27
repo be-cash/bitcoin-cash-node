@@ -382,7 +382,16 @@ public:
             return a->GetEntryId() < b->GetEntryId();
         }
     };
+
+    /** Iterate txs in reverse-topological order */
+    struct CompareIteratorByRevEntryId {
+        bool operator()(const txiter &a, const txiter &b) const {
+            return a->GetEntryId() > b->GetEntryId();
+        }
+    };
+
     using setEntries = std::set<txiter, CompareIteratorByEntryId>;
+    using setRevTopoEntries=  std::set<txiter, CompareIteratorByRevEntryId>;
 
     const setEntries &GetMemPoolParents(txiter entry) const
         EXCLUSIVE_LOCKS_REQUIRED(cs);

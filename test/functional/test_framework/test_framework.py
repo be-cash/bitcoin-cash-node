@@ -30,6 +30,7 @@ from .util import (
     initialize_datadir,
     MAX_NODES,
     p2p_port,
+    chronik_port,
     PortSeed,
     rpc_port,
     set_node_times,
@@ -171,6 +172,9 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         os.environ['PATH'] = config['environment']['BUILDDIR'] + os.pathsep + \
             config['environment']['BUILDDIR'] + os.path.sep + "qt" + os.pathsep + \
             os.environ['PATH']
+
+        # Add test dir to sys.path (to access generated modules)
+        sys.path.append(os.path.join(config["environment"]["BUILDDIR"], "test"))
 
         # Set up temp directory and start logging
         if self.options.tmpdir:
@@ -343,6 +347,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                 host=rpchost,
                 rpc_port=rpc_port(i),
                 p2p_port=p2p_port(i),
+                chronik_port=chronik_port(i),
                 timewait=self.rpc_timeout,
                 bitcoind=binary[i],
                 bitcoin_cli=self.options.bitcoincli,
@@ -561,6 +566,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                     host=None,
                     rpc_port=rpc_port(i),
                     p2p_port=p2p_port(i),
+                    chronik_port=chronik_port(i),
                     timewait=self.rpc_timeout,
                     bitcoind=self.options.bitcoind,
                     bitcoin_cli=self.options.bitcoincli,
@@ -660,6 +666,16 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         if not self.is_cli_compiled():
             raise SkipTest("bitcoin-cli has not been compiled.")
 
+    def skip_if_no_chronik(self):
+        """Skip the running test if Chronik indexer has not been compiled."""
+        if not self.is_chronik_compiled():
+            raise SkipTest("Chronik indexer has not been compiled.")
+
+    def skip_if_no_chronik_plugins(self):
+        """Skip the running test if Chronik indexer plugins have not been compiled."""
+        if not self.is_chronik_plugins_compiled():
+            raise SkipTest("Chronik indexer plugins have not been compiled.")
+
     def is_cli_compiled(self):
         """Checks whether bitcoin-cli was compiled."""
         config = configparser.ConfigParser()
@@ -673,6 +689,14 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         config.read_file(open(self.options.configfile, encoding='utf-8'))
 
         return config["components"].getboolean("ENABLE_WALLET")
+
+    def is_chronik_compiled(self):
+        """Checks whether Chronik indexer was compiled."""
+        return self.config["components"].getboolean("ENABLE_CHRONIK")
+
+    def is_chronik_plugins_compiled(self):
+        """Checks whether Chronik indexer plugins were compiled."""
+        return self.config["components"].getboolean("ENABLE_CHRONIK_PLUGINS")
 
     def is_zmq_compiled(self):
         """Checks whether the zmq module was compiled."""

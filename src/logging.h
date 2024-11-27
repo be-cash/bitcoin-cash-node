@@ -67,6 +67,8 @@ enum LogFlags : uint32_t {
     //! For the adjustable blocksize limit algorithm (consensu/abla.*)
     ABLA = (1 << 25),
 
+    CHRONIK = (1 << 26),
+
     ALL = ~uint32_t(0) & ~uint32_t(HTTPTRACE),
 };
 

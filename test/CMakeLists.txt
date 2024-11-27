@@ -146,6 +146,16 @@ if(BUILD_BITCOIN_TX)
   add_dependencies(check check-bitcoin-util)
 endif()
 
+if(BUILD_BITCOIN_CHRONIK)
+	find_package(Protobuf 3.0.0 REQUIRED)
+	protobuf_generate_python(
+		PROTOBUF_PY
+		../chronik/chronik-proto/proto/chronik.proto
+	)
+	add_custom_target(protobuf-chronik ALL DEPENDS "${PROTOBUF_PY}")
+  add_dependencies(check-functional protobuf-chronik)
+endif()
+
 add_custom_target(check-rpcauth
   COMMENT "Test Bitcoin RPC authentication..."
   COMMAND

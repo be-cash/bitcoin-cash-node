@@ -718,6 +718,9 @@ std::string ArgsManager::GetHelpMessage() const {
             case OptionsCategory::REGISTER_COMMANDS:
                 usage += HelpMessageGroup("Register Commands:");
                 break;
+            case OptionsCategory::CHRONIK:
+                usage += HelpMessageGroup("Chronik options:");
+                break;
             default:
                 break;
         }

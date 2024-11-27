@@ -18,7 +18,7 @@
 #include <future>
 
 TxId BroadcastTransaction(const Config &config, const CTransactionRef tx,
-                          const bool allowhighfees) {
+                          const bool allowhighfees, const bool wait_callback) {
     std::promise<void> promise;
     const TxId &txid = tx->GetId();
 
@@ -26,6 +26,8 @@ TxId BroadcastTransaction(const Config &config, const CTransactionRef tx,
     if (allowhighfees) {
         nMaxRawTxFee = Amount::zero();
     }
+
+    bool callback_set = false;
 
     { // cs_main scope
         LOCK(cs_main);
@@ -55,7 +57,9 @@ TxId BroadcastTransaction(const Config &config, const CTransactionRef tx,
 
                 throw JSONRPCError(RPC_TRANSACTION_ERROR,
                                    FormatStateMessage(state));
-            } else {
+            }
+
+            if (wait_callback) {
                 // If wallet is enabled, ensure that the wallet has been made
                 // aware of the new transaction prior to returning. This
                 // prevents a race where a user might call sendrawtransaction
@@ -64,6 +68,7 @@ TxId BroadcastTransaction(const Config &config, const CTransactionRef tx,
                 // have not yet been processed.
                 CallFunctionInValidationInterfaceQueue(
                     [&promise] { promise.set_value(); });
+                callback_set = true;
             }
         } else if (fHaveChain) {
             throw JSONRPCError(RPC_TRANSACTION_ALREADY_IN_CHAIN,
@@ -75,7 +80,9 @@ TxId BroadcastTransaction(const Config &config, const CTransactionRef tx,
         }
     } // cs_main
 
-    promise.get_future().wait();
+    if (callback_set) {
+        promise.get_future().wait();
+    }
 
     if (!g_connman) {
         throw JSONRPCError(

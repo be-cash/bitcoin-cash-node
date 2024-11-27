@@ -68,6 +68,10 @@
 #include <walletinitinterface.h>
 #include <warnings.h>
 
+#if ENABLE_CHRONIK
+#include "chronik-cpp/chronik.h"
+#endif
+
 #if ENABLE_ZMQ
 #include <zmq/zmqnotificationinterface.h>
 #include <zmq/zmqrpc.h>
@@ -92,6 +96,7 @@
 static constexpr bool DEFAULT_PROXYRANDOMIZE = true;
 /** Default for -rest */
 static constexpr bool DEFAULT_REST_ENABLE = false;
+static constexpr bool DEFAULT_CHRONIK = false;
 
 // Dump addresses to banlist.dat every 15 minutes (900s)
 static constexpr int DUMP_BANS_INTERVAL = 60 * 15;
@@ -286,6 +291,12 @@ void Shutdown(NodeContext &node) {
     // generate CValidationInterface callbacks, flush them...
     GetMainSignals().FlushBackgroundCallbacks();
 
+#if ENABLE_CHRONIK
+    if (gArgs.GetBoolArg("-chronik", DEFAULT_CHRONIK)) {
+        chronik::Stop();
+    }
+#endif
+
     // Any future callbacks will be dropped. This should absolutely be safe - if
     // missing a callback results in an unrecoverable situation, unclean
     // shutdown would too. The only reason to do the above flushes is to let the
@@ -399,7 +410,9 @@ void SetupServerArgs() {
         // GUI args. These will be overwritten by SetupUIArgs for the GUI
         "-choosedatadir", "-lang=<lang>",
         "-min", "-resetguisettings", "-splash",
-        "-uiplatform"};
+        "-uiplatform",
+        "-chronikallowpause",
+        "-chronikcors"};
 
     // Set all of the args and their help
     // When adding new options to the categories, please keep and ensure alphabetical ordering.
@@ -617,6 +630,65 @@ void SetupServerArgs() {
                            "getrawtransaction rpc call (default: %d)",
                            DEFAULT_TXINDEX),
                  ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+#if ENABLE_CHRONIK
+    gArgs.AddArg(
+        "-chronik",
+        strprintf("Enable the Chronik indexer, which can be read via a "
+                  "dedicated HTTP/Protobuf interface (default: %d)",
+                  DEFAULT_CHRONIK),
+        ArgsManager::ALLOW_BOOL, OptionsCategory::CHRONIK);
+    gArgs.AddArg(
+        "-chronikbind=<addr>[:port]",
+        strprintf(
+            "Bind the Chronik indexer to the given address to listen for "
+            "HTTP/Protobuf connections to access the index. Unlike the "
+            "JSON-RPC, it's ok to have this publicly exposed on the internet. "
+            "This option can be specified multiple times (default: %s; default "
+            "port: %u, testnet: %u, regtest: %u)",
+            Join(chronik::DEFAULT_BINDS, ", "),
+            defaultBaseParams->ChronikPort(), testnetBaseParams->ChronikPort(),
+            regtestBaseParams->ChronikPort()),
+        ArgsManager::ALLOW_STRING | ArgsManager::NETWORK_ONLY,
+        OptionsCategory::CHRONIK);
+    gArgs.AddArg("-chroniktokenindex",
+                   "Enable token indexing in Chronik (default: 1)",
+                   ArgsManager::ALLOW_BOOL, OptionsCategory::CHRONIK);
+    gArgs.AddArg("-chroniklokadidindex",
+                   "Enable LOKAD ID indexing in Chronik (default: 1)",
+                   ArgsManager::ALLOW_BOOL, OptionsCategory::CHRONIK);
+    gArgs.AddArg("-chronikreindex",
+                   "Reindex the Chronik indexer from genesis, but leave the "
+                   "other indexes untouched",
+                   ArgsManager::ALLOW_BOOL, OptionsCategory::CHRONIK);
+    gArgs.AddArg(
+        "-chroniktxnumcachebuckets",
+        strprintf(
+            "Tuning param of the TxNumCache, specifies how many buckets "
+            "to use on the belt. Caution against setting this too high, "
+            "it may slow down indexing. Set to 0 to disable. (default: %d)",
+            chronik::DEFAULT_TX_NUM_CACHE_BUCKETS),
+        ArgsManager::ALLOW_INT, OptionsCategory::CHRONIK);
+    gArgs.AddArg(
+        "-chroniktxnumcachebucketsize",
+        strprintf(
+            "Tuning param of the TxNumCache, specifies the size of each bucket "
+            "on the belt. Unlike the number of buckets, this may be increased "
+            "without much danger of slowing the indexer down. The total cache "
+            "size will be `num_buckets * bucket_size * 40B`, so by default the "
+            "cache will require %dkB of memory. (default: %d)",
+            chronik::DEFAULT_TX_NUM_CACHE_BUCKETS *
+                chronik::DEFAULT_TX_NUM_CACHE_BUCKET_SIZE * 40 / 1000,
+            chronik::DEFAULT_TX_NUM_CACHE_BUCKET_SIZE),
+        ArgsManager::ALLOW_INT, OptionsCategory::CHRONIK);
+    gArgs.AddArg("-chronikperfstats",
+                   "Output some performance statistics (e.g. num cache hits, "
+                   "seconds spent) into a <datadir>/perf folder. (default: 0)",
+                   ArgsManager::ALLOW_BOOL, OptionsCategory::CHRONIK);
+    gArgs.AddArg(
+        "-chronikscripthashindex",
+        "Enable the scripthash index for the Chronik indexer (default: 0) ",
+        ArgsManager::ALLOW_BOOL, OptionsCategory::CHRONIK);
+#endif
     gArgs.AddArg(
         "-usecashaddr",
         strprintf("Use CashAddr address format for destination encoding "
@@ -1625,6 +1697,9 @@ bool AppInitParameterInteraction(Config &config) {
     if (gArgs.GetArg("-prune", 0)) {
         if (gArgs.GetBoolArg("-txindex", DEFAULT_TXINDEX)) {
             return InitError(_("Prune mode is incompatible with -txindex."));
+        }
+        if (gArgs.GetBoolArg("-chronik", DEFAULT_CHRONIK)) {
+            return InitError(_("Prune mode is incompatible with -chronik."));
         }
     }
 
@@ -2671,6 +2746,16 @@ bool AppInitMain(Config &config, RPCServer &rpcServer,
         g_txindex = std::make_unique<TxIndex>(nTxIndexCache, false, fReindex);
         g_txindex->Start();
     }
+
+#if ENABLE_CHRONIK
+    if (gArgs.GetBoolArg("-chronik", DEFAULT_CHRONIK)) {
+        const bool fReindexChronik =
+            fReindex || gArgs.GetBoolArg("-chronikreindex", false);
+        if (!chronik::Start(gArgs, config, node, fReindexChronik)) {
+            return false;
+        }
+    }
+#endif
 
     // Step 9: load wallet
     for (const auto &client : node.chain_clients) {

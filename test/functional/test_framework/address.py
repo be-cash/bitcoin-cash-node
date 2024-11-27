@@ -6,11 +6,23 @@
 
 import unittest
 
-from .script import hash256, hash160, CScript
+from .script import hash256, hash160, CScript, CScriptOp, OP_TRUE
 from .util import hex_str_to_bytes
 
 from test_framework.util import assert_equal
 
+ADDRESS_ECREG_UNSPENDABLE = "bchreg:qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqha9s37tt"
+ADDRESS_ECREG_UNSPENDABLE_DESCRIPTOR = (
+    "addr(bchreg:qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqha9s37tt)#u6xx93xc"
+)
+SCRIPT_UNSPENDABLE = CScript.fromhex(
+    "76a914000000000000000000000000000000000000000088ac"
+)
+
+# Coins sent to this address can be spent with a scriptSig of just OP_TRUE
+ADDRESS_ECREG_P2SH_OP_TRUE = "bchreg:prdpw30fk4ym6zl6rftfjuw806arpn26fveknc0qmt"
+P2SH_OP_TRUE = CScript.fromhex("a914da1745e9b549bd0bfa1a569971c77eba30cd5a4b87")
+SCRIPTSIG_OP_TRUE = CScriptOp.encode_op_pushdata(CScript([OP_TRUE]))
 
 chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 

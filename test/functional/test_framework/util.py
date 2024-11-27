@@ -369,11 +369,66 @@ def rpc_port(n):
         (MAX_NODES * PortSeed.n) % (PORT_RANGE - 1 - MAX_NODES)
 
 
+def chronik_port(n):
+    port = PORT_MIN + 2 * PORT_RANGE + n + \
+        (MAX_NODES * PortSeed.n) % (PORT_RANGE - 1 - MAX_NODES)
+    print('port', port)
+    return port
+
+
 def rpc_url(datadir, chain, host, port):
     rpc_u, rpc_p = get_auth_cookie(datadir, chain)
     if host is None:
         host = '127.0.0.1'
     return "http://{}:{}@{}:{}".format(rpc_u, rpc_p, host, int(port))
+
+
+def chronik_sub_to_blocks(ws, node, *, is_unsub=False) -> None:
+    """Subscribe to block events and make sure the subscription is active before returning"""
+    subscribe_log = "unsubscribe from" if is_unsub else "subscribe to"
+    with node.assert_debug_log([f"WS {subscribe_log} blocks"]):
+        ws.sub_to_blocks(is_unsub=is_unsub)
+
+
+def chronik_sub_script(
+    ws, node, script_type: str, payload: bytes, *, is_unsub=False
+) -> None:
+    """Subscribe to script events and make sure the subscription is active before returning"""
+    subscribe_log = "unsubscribe from" if is_unsub else "subscribe to"
+    with node.assert_debug_log([f"WS {subscribe_log} {script_type}({payload.hex()})"]):
+        ws.sub_script(script_type, payload, is_unsub=is_unsub)
+
+
+def chronik_sub_token_id(ws, node, token_id: str, *, is_unsub=False) -> None:
+    """Subscribe to token events and make sure the subscription is active before returning"""
+    subscribe_log = "unsubscribe from" if is_unsub else "subscribe to"
+    with node.assert_debug_log([f"WS {subscribe_log} token ID {token_id}"]):
+        ws.sub_token_id(token_id, is_unsub=is_unsub)
+
+
+def chronik_sub_lokad_id(ws, node, lokad_id: bytes, *, is_unsub=False) -> None:
+    """Subscribe to LOKAD ID events and make sure the subscription is active before returning"""
+    subscribe_log = "unsubscribe from" if is_unsub else "subscribe to"
+    with node.assert_debug_log([f"WS {subscribe_log} LOKAD ID {lokad_id.hex()}"]):
+        ws.sub_lokad_id(lokad_id, is_unsub=is_unsub)
+
+
+def chronik_sub_plugin(
+    ws, node, plugin_name: str, group: bytes, *, is_unsub=False
+) -> None:
+    """Subscribe to plugin events and make sure the subscription is active before returning"""
+    subscribe_log = "unsubscribe from" if is_unsub else "subscribe to"
+    with node.assert_debug_log(
+        [f"WS {subscribe_log} plugin {plugin_name}, group {group.hex()}"]
+    ):
+        ws.sub_plugin(plugin_name, group, is_unsub=is_unsub)
+
+
+def iter_chunks(lst: list, n: int):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i : i + n]
+
 
 # Node functions
 ################
@@ -392,6 +447,7 @@ def initialize_datadir(dirname, n, chain):
             f.write("[{}]\n".format(chain_name_conf_section))
         f.write("port=" + str(p2p_port(n)) + "\n")
         f.write("rpcport=" + str(rpc_port(n)) + "\n")
+        f.write(f"chronikbind=127.0.0.1:{str(chronik_port(n))}\n")
         f.write("server=1\n")
         f.write("keypool=1\n")
         f.write("discover=0\n")
@@ -617,3 +673,15 @@ def find_vout_for_address(node, txid, addr):
             return i
     raise RuntimeError(
         "Vout not found for address: txid={}, addr={}".format(txid, addr))
+
+
+def hex_to_be_bytes(hex_string: str) -> bytes:
+    return bytes.fromhex(hex_string)[::-1]
+
+
+def get_cli_version(framework, node):
+    """Use bitcoin-cli to get the version"""
+    version = node.cli().send_cli("-version")
+    version = version.splitlines()[0]
+    preamble = f"Bitcoin Cash Node RPC client version "
+    return version[len(preamble) :]

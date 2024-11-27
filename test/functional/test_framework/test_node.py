@@ -58,7 +58,7 @@ class TestNode():
     To make things easier for the test writer, any unrecognised messages will
     be dispatched to the RPC connection."""
 
-    def __init__(self, i, datadir, *, chain, host, rpc_port, p2p_port, timewait, bitcoind,
+    def __init__(self, i, datadir, *, chain, host, rpc_port, p2p_port, chronik_port, timewait, bitcoind,
                  bitcoin_cli, mocktime, coverage_dir, extra_conf=None, extra_args=None, use_cli=False, emulator=None):
         self.index = i
         self.datadir = datadir
@@ -69,6 +69,7 @@ class TestNode():
         self.host = host
         self.rpc_port = rpc_port
         self.p2p_port = p2p_port
+        self.chronik_port = chronik_port
         self.name = "testnode-{}".format(i)
         self.rpc_timeout = timewait
         self.binary = bitcoind
@@ -511,6 +512,21 @@ class TestNode():
         for p in self.p2ps:
             p.peer_disconnect()
         del self.p2ps[:]
+
+    def get_chronik_client(self):
+        """Return a ChronikClient instance that communicates with this node"""
+        # Chronik might not be built-in so let's not import each time this file
+        # is included but only where it's expected to not explode.
+        from .chronik.client import DEFAULT_TIMEOUT, ChronikClient
+
+        # host is always None in practice, we should get rid of it at some
+        # point. In the meantime, let's properly handle the API.
+        host = self.host if self.host is not None else "127.0.0.1"
+        return ChronikClient(
+            host,
+            self.chronik_port,
+            timeout=DEFAULT_TIMEOUT,
+        )
 
 
 class TestNodeCLIAttr:

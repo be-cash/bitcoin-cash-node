@@ -38,7 +38,7 @@ struct MainSignalsInstance {
     boost::signals2::signal<void(const CBlockIndex *, const CBlockIndex *,
                                  bool fInitialDownload)>
         UpdatedBlockTip;
-    boost::signals2::signal<void(const CTransactionRef &)>
+    boost::signals2::signal<void(const CTransactionRef &, std::shared_ptr<const std::vector<Coin>>)>
         TransactionAddedToMempool;
     boost::signals2::signal<void(const CTransactionRef &, const DspId &)>
         TransactionDoubleSpent;
@@ -48,7 +48,7 @@ struct MainSignalsInstance {
                                  const CBlockIndex *pindex,
                                  const std::vector<CTransactionRef> &)>
         BlockConnected;
-    boost::signals2::signal<void(const std::shared_ptr<const CBlock> &)>
+    boost::signals2::signal<void(const std::shared_ptr<const CBlock> &, const CBlockIndex *pindex)>
         BlockDisconnected;
     boost::signals2::signal<void(const CTransactionRef &)>
         TransactionRemovedFromMempool;
@@ -141,14 +141,14 @@ void RegisterValidationInterface(CValidationInterface *pwalletIn) {
     conns.TransactionAddedToMempool =
         g_signals.m_internals->TransactionAddedToMempool.connect(
             std::bind(&CValidationInterface::TransactionAddedToMempool,
-                      pwalletIn, std::placeholders::_1));
+                      pwalletIn, std::placeholders::_1, std::placeholders::_2));
     conns.BlockConnected = g_signals.m_internals->BlockConnected.connect(
         std::bind(&CValidationInterface::BlockConnected, pwalletIn,
                   std::placeholders::_1, std::placeholders::_2,
                   std::placeholders::_3));
     conns.BlockDisconnected = g_signals.m_internals->BlockDisconnected.connect(
         std::bind(&CValidationInterface::BlockDisconnected, pwalletIn,
-                  std::placeholders::_1));
+                  std::placeholders::_1, std::placeholders::_2));
     conns.TransactionRemovedFromMempool =
         g_signals.m_internals->TransactionRemovedFromMempool.connect(
             std::bind(&CValidationInterface::TransactionRemovedFromMempool,
@@ -225,9 +225,9 @@ void CMainSignals::UpdatedBlockTip(const CBlockIndex *pindexNew,
     });
 }
 
-void CMainSignals::TransactionAddedToMempool(const CTransactionRef &ptx) {
+void CMainSignals::TransactionAddedToMempool(const CTransactionRef &ptx, std::shared_ptr<const std::vector<Coin>> spent_coins) {
     m_internals->m_schedulerClient.AddToProcessQueue(
-        [ptx, this] { m_internals->TransactionAddedToMempool(ptx); });
+        [ptx, spent_coins, this] { m_internals->TransactionAddedToMempool(ptx, spent_coins); });
 }
 
 void CMainSignals::TransactionDoubleSpent(const CTransactionRef &ptx, const DspId &dspId) {
@@ -250,9 +250,9 @@ void CMainSignals::BlockConnected(
 }
 
 void CMainSignals::BlockDisconnected(
-    const std::shared_ptr<const CBlock> &pblock) {
+    const std::shared_ptr<const CBlock> &pblock, const CBlockIndex *pindex) {
     m_internals->m_schedulerClient.AddToProcessQueue(
-        [pblock, this] { m_internals->BlockDisconnected(pblock); });
+        [pblock, pindex, this] { m_internals->BlockDisconnected(pblock, pindex); });
 }
 
 void CMainSignals::ChainStateFlushed(const CBlockLocator &locator) {
