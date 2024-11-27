@@ -608,9 +608,6 @@ add_library(server
 )
 
 target_include_directories(server PRIVATE leveldb/helpers/memenv)
-if(BUILD_BITCOIN_CHRONIK)
-	target_include_directories(server PRIVATE ../../../../chronik)
-endif()
 
 # This require libevent
 set(EVENT_MIN_VERSION 2.0.22)
